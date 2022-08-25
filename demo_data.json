@@ -1,0 +1,12 @@
+{
+    "data" : [
+        {
+            "employee" : "",
+            "employee_name" : "",
+            "image" : "",
+            "company" : "",
+            "gender" : "",
+            "date_of_birth" : ""
+        }
+    ]
+}
