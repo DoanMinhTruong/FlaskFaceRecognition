@@ -1,21 +1,52 @@
-from flask import Flask , render_template, Response
-from camera import Video
+import base64
+from flask import Flask , render_template, Response , request
+from camera import Video, API
+
 import cv2
 import numpy as np
-from face import DracoFaceRecognition
 import requests
 
-API_SECRET = "6f91125181dcd41"
-API_KEY = "a0e52e85d3d64fb"
+
 
 
 app = Flask(__name__)
 faceDetect = cv2.CascadeClassifier('haar.xml')
-reg = DracoFaceRecognition()
 
 my_video = Video()
-
+api = API()
 status = None
+
+# API ROUTE
+
+@app.route('/api/getListEmployee')
+def getListEmployee():
+    return api.getListEmployee()
+
+@app.route('/api/getEmployeeImage/<employee>')
+def getEmployeeImage(employee):
+    return api.getEmployeeImage(employee)
+
+@app.route('/api/createEmployeeImage' ,methods=['POST'])
+def createEmployeeImage():
+    employee = request.form.get('employee')
+    filename = request.form.get('filename')
+    filedata = request.form.get('filedata')
+    return api.createEmployeeImage(employee, filename,filedata)
+@app.route('/api/getEmployee/<face_name>')
+def getEmployee(face_name):
+    return api.getEmployee(face_name)
+@app.route('/api/uploadFileAttendanceImage' , methods = ['POST'])
+def uploadFileAttendanceImage():
+    name = request.form['name']
+    base64 = request.form['base64']
+    return api.uploadFileAttendanceImage(name, base64)
+
+@app.route('/api/deleteEmployeeImage/<name>' , methods = ['DELETE'])
+def deleteEmployeeImage(name):
+    return api.deleteEmployeeImage(name)
+#
+
+
 
 @app.route('/')
 def index():
@@ -23,7 +54,9 @@ def index():
 
 def generate(camera):
     while True:
-        frame = camera.get_frame()
+        frame = camera.get_frame() or None
+        if(frame == None):
+            continue
         get_face(frame)
         yield(b'--frame\r\n'
         b'Content-Type : image/jpeg\r\n\r\n' + frame

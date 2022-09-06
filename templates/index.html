@@ -46,10 +46,7 @@
     var listEmployee = []
     $.ajax({
         type : 'get' , 
-        url  : 'http://testphanquyen.drabiz.net:8000/api/resource/Employee?fields=["name","employee_name"]',
-        headers : {
-            'Authorization' : "token 2850d97206bd945:b8fca0ea4c894da"
-        },
+        url  : '/api/getListEmployee',
         dataType : "json",
         success : function(data) {
             data = data.data
@@ -95,7 +92,6 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-primary">Save</button>
         </div>
       </div>
     </div>
@@ -141,8 +137,8 @@
                     </tbody>
                   </table>
                   <div id="action">
-                    <button class="btn btn-primary btn-lg" id="btnSubmit">Submit</button>
-                    <button class="btn btn-danger btn-lg" id="btnReset">Reset</button>
+                    <button class="btn btn-primary btn-lg " id="btnSubmit">Submit</button>
+                    <button class="btn btn-danger btn-lg " id="btnReset">Reset</button>
 
                 </div>
             </div>
@@ -160,27 +156,43 @@
         $('#date_of_birth').text("") 
         $('#date_of_joining').text("") 
     }
+    function deleteEmployeImage(event){
+        console.log(event)
+        event.parentElement.style.opacity = 0.2;
+        $.ajax({
+            type: 'DELETE' , 
+            url : '/api/deleteEmployeeImage/' + event.getAttribute('name'),
+            success: function(data){
+                
+                fetchEmployee();
+            },
+            error: function(err){
+                alert(err)
+            }
+        })
+    }
     function resetImageControl(){
         // Update Image-Control theo beforeUpdate
         $('#image-control').empty();
         let image_control = document.getElementById('image-control')
         var list = beforeUpdate['image'].data;
+        image_control.innerHTML = "";
         for(let i =0 ; i < list.length ; i ++){
             image_control.innerHTML += `
-            <div class="imggg col-md-4 p-2 border">
-                    <img src="` + (list[i].image != null ? (default_url + list[i].image) : default_profile_image) + `" style="max-width: 100%; max-height: 100%;" alt="">
-                </div>
+            <div class="imggg col-md-4 p-2 border h-50" style="background-image:url('` + (list[i].image != null ? (default_url + list[i].image) : default_profile_image) + `') ; background-repeat: no-repeat; background-size:cover; background-position-x:center;background-position-y:center;">
+                <button class="btn btn-light btn-delete-image" onclick="deleteEmployeImage(this);" name="`+list[i].name+`">
+                <i  class="fa fa-1x fa-trash" ></i>
+                </button>
+            </div>
             `;
         }
     }
+    
     function fetchEmployee(){
         var select = $('#selectEmployee').find(":selected").attr('id');
         $.ajax({
             type : 'get' , 
-            url  : 'http://testphanquyen.drabiz.net:8000/api/resource/Employee Image?fields=["*"]&filters=[["employee","=","'+select+'"]]',
-            headers : {
-                'Authorization' : "token 2850d97206bd945:b8fca0ea4c894da"
-            },
+            url  : '/api/getEmployeeImage/' + select,
             dataType : "json",
             success: function(data){
                 beforeUpdate['employee'] = select;
@@ -200,58 +212,20 @@
         reader.readAsBinaryString(img);
 
         reader.onload = function() {
+            let fd = new FormData()
+            fd.append('employee' , beforeUpdate['employee'])
+            fd.append('filename' , file.name) 
+            fd.append('filedata' , btoa(reader.result))
             $.ajax({
-                type : 'post' , 
-                url  : 'http://testphanquyen.drabiz.net:8000/api/resource/Employee Image',
-                headers : {
-                    'Authorization' : "token 2850d97206bd945:b8fca0ea4c894da"
-                },
-                dataType : "json",
-                data: {
-                    'employee' : beforeUpdate['employee'],
-                },
-                success : function(data){
-                    var fd = new FormData();
-                    fd.append('cmd' , 'uploadfile')
-                    fd.append('doctype' , 'Employee Image')
-                    fd.append('docname' , data.data.name)
-                    fd.append('filename' , file.name)
-                    fd.append('filedata' , btoa(reader.result))
-                    fd.append('from_form' , 1)
-                    $.ajax({
-                        type : 'post', 
-                        url : ('http://testphanquyen.drabiz.net:8000/api/method/uploadfile/'),
-                        data: fd,
-                        processData: false,
-                        contentType: false,
-                        headers : {
-                            'Authorization' : "token 2850d97206bd945:b8fca0ea4c894da",
-                            // "Content-Type": "application/x-www-form-urlencoded" 
-                        },
-                        
-                        success:function(data2){
-                            console.log(data2.message.file_url)
-                            $.ajax({
-                                type : 'put' , 
-                                url : ("http://testphanquyen.drabiz.net:8000/api/resource/Employee Image/" + data.data.name) ,
-                                headers : {
-                                    'Authorization' : "token 2850d97206bd945:b8fca0ea4c894da",
-                                    // "Content-Type": "application/x-www-form-urlencoded" 
-                                },
-                                dataType : "json" , 
-                                data : {
-                                    "image" : data2.message.file_url
-                                },
-                                success: function(s) {
-                                    
-                                    console.log(s)
-                                }
-                            })
-                        },
-                        error : function(er) {
-                            console.log(er)
-                        }
-                    })
+                type : 'POST' , 
+                url : '/api/createEmployeeImage',
+                // contentType: "application/json;charset=utf-8",
+                data : fd ,
+                processData: false,
+                contentType: false,
+                success: function(data){
+                    fetchEmployee();
+                    inp_img.value = "";
                 }
             })
         };
@@ -262,15 +236,16 @@
     inp_img.onchange = event =>{
         const [file] = inp_img.files
         if(file){
-            let this_div = document.createElement('div')
-            this_div.className = "imggg col-md-4 p-2 border"
-            let this_img = document.createElement('img')
-            this_img.src = URL.createObjectURL(file)
-            this_img.style="max-width: 100%; max-height: 100%;"
-            this_div.appendChild(this_img)
-            img_control.appendChild(this_div)
+            // let this_div = document.createElement('div')
+            // this_div.className = "imggg col-md-4 p-2 border"
+            // let this_img = document.createElement('img')
+            // this_img.src = URL.createObjectURL(file)
+            // this_img.style="max-width: 100%; max-height: 100%;"
+            // this_div.appendChild(this_img)
+            // img_control.appendChild(this_div)
 
             create_upload(inp_img)
+            
         }
         
     }
@@ -290,13 +265,9 @@
                     timer.stop()
                     $.ajax({
                         type : 'get' , 
-                        url  : 'http://testphanquyen.drabiz.net:8000/api/resource/Employee?fields=["*"]&filters=[["name","=","'+face_name+'"]]',
-                        headers : {
-                            'Authorization' : "token 2850d97206bd945:b8fca0ea4c894da"
-                        },
+                        url  : '/api/getEmployee/' + face_name,
                         dataType : "json",
-                        success: function(data){
-                            employee = data['data'][0]
+                        success: function(employee){
                             if(employee == "Unknown") {
                                 timer.start();
                                 return
@@ -315,8 +286,8 @@
     } , 100)
     function getBase64Image(img) {
         var canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
         var ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0);
         var dataURL = canvas.toDataURL("image/png");
@@ -324,57 +295,41 @@
     }
     $('#btnReset').on('click'  , function(){
         $.get(url = "/reset");
+        resetInfo();
         timer.start()
     })
     $('#btnSubmit').on('click' , function(){
         $.ajax({
             url : '/submit' , 
+            dataType: 'json',
             success: function(data) {
-                var fd = new FormData();
-                fd.append('cmd' , 'uploadfile')
-                fd.append('doctype' , 'Attendance Image')
-                fd.append('docname' , data.data.name)
-                fd.append('filename' , (data.data.name + ".jpg"))
-                fd.append('filedata' , getBase64Image(document.getElementById('camera')))
-                fd.append('from_form' , 1)
+                let fd = new FormData()
+                fd.append('name' , data.data.name)
+                fd.append('base64' , getBase64Image(document.getElementById('camera')))
                 $.ajax({
-                    type : 'post', 
-                    url : ('http://testphanquyen.drabiz.net:8000/api/method/uploadfile/'),
-                    data: fd,
-                    processData: false,
+                    type : 'POST' ,
+                    url : '/api/uploadFileAttendanceImage',
                     contentType: false,
-                    headers : {
-                        'Authorization' : "token 2850d97206bd945:b8fca0ea4c894da",
-                        // "Content-Type": "application/x-www-form-urlencoded" 
-                    },
-                    
-                    success:function(data2){
-                        console.log(data2.message.file_url)
-                        $.ajax({
-                            type : 'put' , 
-                            url : ("http://testphanquyen.drabiz.net:8000/api/resource/Attendance Image/" + data.data.name) ,
-                            headers : {
-                                'Authorization' : "token 2850d97206bd945:b8fca0ea4c894da",
-                                // "Content-Type": "application/x-www-form-urlencoded" 
-                            },
-                            dataType : "json" , 
-                            data : {
-                                "image" : data2.message.file_url
-                            },
-                            success: function(s) {
-                                timer.start();
-                                console.log(s)
-                            }
-                        })
-                    },
-                    error : function(er) {
-                        console.log(er)
+                    processData: false,
+                    data : fd,
+                    success: function(data){
+                        resetInfo();
+                        timer.start();
                     }
                 })
             }
         })
     })
-
+    document.addEventListener('keydown', function(e){
+        e.preventDefault();
+        if(e.key == "Enter"){
+            $('#btnSubmit').click();
+        }
+        if(e.key == "Space" || e.key == 32 || e.key == " ") {
+            
+            $('#btnReset').click();
+        }
+    })
 </script>
 
 {% endblock %}
